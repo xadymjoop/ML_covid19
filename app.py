@@ -1,48 +1,59 @@
 import streamlit as st
 import joblib
 import pandas as pd
+import gdown
+import os
 
 # Titre de l'application
-st.title('Application de détection de risque de décès COVID-19')
+st.title("Prédiction d'admission en soins intensifs (COVID-19)")
 
-# Charger le modèle sauvegardé
-model = joblib.load('covid_risk_model.pkl')
+# Télécharger et charger le modèle
+@st.cache_resource
+def load_model():
+    url = 'https://drive.google.com/uc?id=1X_aSkREb2TRXOHLmqzr8_neAy9OJEuTb'
+    output = 'covid_icu_model.pkl'
+    
+    # Télécharger le modèle s'il n'existe pas déjà
+    if not os.path.exists(output):
+        gdown.download(url, output, quiet=True)
+    
+    # Vérifier que le fichier a bien été téléchargé
+    if not os.path.exists(output):
+        raise FileNotFoundError(f"Le fichier du modèle {output} n'a pas pu être téléchargé.")
+    
+    return joblib.load(output)
 
-# Entrées utilisateur
-st.sidebar.header("Entrez les informations du patient")
+# Charger le modèle avec vérification
+try:
+    model = load_model()
+    st.success("Modèle chargé avec succès !")
+except Exception as e:
+    st.error(f"Erreur lors du chargement du modèle : {e}")
+    st.stop()  # Arrête l'exécution de l'application si le modèle ne peut pas être chargé
 
-age = st.sidebar.slider('Âge', 0, 100, 50)
-sex = st.sidebar.selectbox('Sexe', ['Homme', 'Femme'])
-pneumonia = st.sidebar.selectbox('Pneumonie', ['Non', 'Oui'])
-diabetes = st.sidebar.selectbox('Diabète', ['Non', 'Oui'])
-obesity = st.sidebar.selectbox('Obésité', ['Non', 'Oui'])
+# Formulaire pour saisir les données
+st.sidebar.header("Saisissez les informations du patient")
+age = st.sidebar.number_input('Âge', min_value=0, max_value=120, value=50)
+diabetes = st.sidebar.selectbox('Diabète', [0, 1], help="0 = Non, 1 = Oui")
+hypertension = st.sidebar.selectbox('Hypertension', [0, 1], help="0 = Non, 1 = Oui")
+obesity = st.sidebar.selectbox('Obésité', [0, 1], help="0 = Non, 1 = Oui")
+tobacco = st.sidebar.selectbox('Tabagisme', [0, 1], help="0 = Non, 1 = Oui")
 
-# Convertir les entrées en valeurs numériques
-sex = 1 if sex == 'Femme' else 0
-pneumonia = 1 if pneumonia == 'Oui' else 0
-diabetes = 1 if diabetes == 'Oui' else 0
-obesity = 1 if obesity == 'Oui' else 0
-
-# Créer un DataFrame avec les entrées
-input_data = pd.DataFrame({
-    'AGE': [age],
-    'SEX': [sex],
-    'PNEUMONIA': [pneumonia],
-    'DIABETES': [diabetes],
-    'OBESITY': [obesity]
-})
-
-# Bouton pour lancer la prédiction
-if st.sidebar.button('Prédire le risque de décès'):
-    # Faire la prédiction
-    prediction = model.predict(input_data)
-    prediction_proba = model.predict_proba(input_data)
-
-    # Afficher le résultat
-    if prediction[0] == 1:
-        st.error('Risque de décès élevé')
-    else:
-        st.success('Risque de décès faible')
-
-    # Afficher la probabilité
-    st.write(f'Probabilité de décès : {prediction_proba[0][1]:.2f}')
+# Bouton pour faire une prédiction
+if st.sidebar.button('Prédire'):
+    input_data = pd.DataFrame({
+        'AGE': [age],
+        'DIABETES': [diabetes],
+        'HIPERTENSION': [hypertension],
+        'OBESITY': [obesity],
+        'TOBACCO': [tobacco]
+    })
+    
+    try:
+        prediction = model.predict(input_data)
+        if prediction[0] == 1:
+            st.error("Le patient est susceptible d'être admis en soins intensifs.")
+        else:
+            st.success("Le patient n'est pas susceptible d'être admis en soins intensifs.")
+    except Exception as e:
+        st.error(f"Erreur lors de la prédiction : {e}")
