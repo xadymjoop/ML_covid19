@@ -7,8 +7,8 @@ import os
 # Titre de l'application
 st.title("Prédiction d'admission en soins intensifs (COVID-19)")
 
-# Télécharger et charger le modèle
-@st.cache_resource
+# Fonction pour télécharger et charger le modèle
+@st.cache_resource  # Cache le modèle pour éviter de le recharger à chaque interaction
 def load_model():
     url = 'https://drive.google.com/uc?id=1X_aSkREb2TRXOHLmqzr8_neAy9OJEuTb'
     output = 'covid_icu_model.pkl'
@@ -20,7 +20,7 @@ def load_model():
     # Vérifier que le fichier a bien été téléchargé
     if os.path.exists(output):
         try:
-            return joblib.load(output)
+            return joblib.load(output)  # Charger le modèle
         except Exception as e:
             raise RuntimeError(f"Impossible de charger le modèle : {e}")
     else:
@@ -44,6 +44,7 @@ tobacco = st.sidebar.selectbox('Tabagisme', [0, 1], help="0 = Non, 1 = Oui")
 
 # Bouton pour faire une prédiction
 if st.sidebar.button('Prédire'):
+    # Préparer les données d'entrée
     input_data = pd.DataFrame({
         'AGE': [age],
         'DIABETES': [diabetes],
@@ -67,7 +68,7 @@ if st.sidebar.button('Prédire'):
         # Vérifier les valeurs manquantes
         if input_data.isnull().any().any():
             st.warning("Il y a des valeurs manquantes dans les données d'entrée. Elles doivent être traitées avant la prédiction.")
-            input_data = input_data.fillna(input_data.mean())
+            input_data = input_data.fillna(input_data.mean())  # Remplacer les valeurs manquantes par la moyenne
         
         # Faire la prédiction
         try:
